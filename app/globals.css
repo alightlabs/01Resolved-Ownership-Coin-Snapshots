@@ -122,3 +122,12 @@ body {
   .pos { color: #31BA7C; }
   .neg { color: #FF6477; }
 }
+
+@media print {
+  header, nav { display: none !important; }
+  .lg\:grid-cols-\[180px_1fr_300px\] { display: block !important; }
+  .hidden.lg\:block { display: none !important; }
+  body { background: white !important; }
+  section { break-inside: avoid; page-break-inside: avoid; }
+  .sticky { position: static !important; }
+}
