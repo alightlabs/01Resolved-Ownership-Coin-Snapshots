@@ -1,34 +1,21 @@
-name: Deploy to Vercel
+name: Sync secrets to Vercel
+
+# Vercel deploys automatically via its GitHub integration on every push.
+# This workflow only keeps the Vercel project's env vars in sync with GitHub Secrets,
+# so API keys never need to be typed into any dashboard manually.
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
-  deploy:
+  sync-env:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Pull Vercel project settings
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      # Push API keys from GitHub Secrets into the Vercel project's encrypted env store.
-      # Keys are never typed into any dashboard — they flow GitHub Secrets → Vercel CLI → Vercel.
       - name: Sync API keys to Vercel project
         run: |
           printf '%s' "$DUNE_API_KEY"     | vercel env add DUNE_API_KEY     production --token=${{ secrets.VERCEL_TOKEN }} --force
@@ -39,17 +26,3 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
           RESOLVED_API_KEY: ${{ secrets.RESOLVED_API_KEY }}
-
-      - name: Deploy to Vercel (production)
-        if: github.ref == 'refs/heads/main'
-        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Deploy preview (PRs)
-        if: github.event_name == 'pull_request'
-        run: vercel --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
