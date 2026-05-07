@@ -24,17 +24,11 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Pull Vercel environment (project metadata only)
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
+      # Build Next.js directly — all env vars come from GitHub Secrets,
+      # so we don't need "vercel pull" (which requires a pre-linked project).
       - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npm run build
         env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
           RESOLVED_API_KEY: ${{ secrets.RESOLVED_API_KEY }}
           NEXT_PUBLIC_PROJECT_SLUG: omnipair
