@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { fmtUsd, fmtNum } from "@/lib/dune";
-import type { TreasuryOverview, AssetBreakdown, Movement } from "@/lib/resolved";
+import type { TreasuryOverview, AssetBreakdown, Movement, RevenuePoint } from "@/lib/resolved";
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const BRONZE = "#D4B596";
@@ -216,63 +216,154 @@ function TreasuryTab({ overview, assets }: {
 }
 
 // ── Tab 3: Revenue & Economics ────────────────────────────────────────────────
-function RevenueTab({ movements, totalRevenue }: {
-  movements: Movement[] | null; totalRevenue: string | null;
+function RevenueTab({ movements, totalRevenue, revenueHistory }: {
+  movements:      Movement[]     | null;
+  totalRevenue:   string         | null;
+  revenueHistory: RevenuePoint[] | null;
 }) {
+  // Normalise movements — API may return array or paginated wrapper { items: [] }
+  const movementList: Movement[] = (() => {
+    if (!movements) return [];
+    if (Array.isArray(movements)) return movements;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const m = movements as any;
+    if (Array.isArray(m?.items))   return m.items as Movement[];
+    if (Array.isArray(m?.data))    return m.data  as Movement[];
+    if (Array.isArray(m?.results)) return m.results as Movement[];
+    return [];
+  })();
+
+  // Normalise revenue history — same defensive unwrap
+  const revPoints: RevenuePoint[] = (() => {
+    if (!revenueHistory) return [];
+    if (Array.isArray(revenueHistory)) return revenueHistory;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = revenueHistory as any;
+    if (Array.isArray(r?.items))   return r.items as RevenuePoint[];
+    if (Array.isArray(r?.data))    return r.data  as RevenuePoint[];
+    return [];
+  })();
+
+  const revChartData = revPoints
+    .map(p => ({
+      period:  p.month ?? p.period ?? "",
+      revenue: parseFloat(p.revenue) || 0,
+    }))
+    .filter(p => p.period)
+    .sort((a, b) => a.period.localeCompare(b.period))
+    .slice(-12); // last 12 months
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
-      <div>
-        <p className="label-caps mb-3">Recent Treasury Activity</p>
-        {!movements || movements.length === 0 ? (
-          <div className="border border-dashed border-[#E2DDD6] p-8 text-center text-[12px] text-[#999] font-sans">
-            No movement data
-          </div>
-        ) : (
-          <div className="border border-[#E2DDD6] divide-y divide-[#E2DDD6]">
-            {movements.slice(0, 8).map(m => {
-              const val = typeof m.totalValue === "number" ? fmtUsd(m.totalValue) : "—";
-              const ts  = m.timestamp
-                ? (() => { try { return format(parseISO(m.timestamp), "MMM d"); } catch { return ""; } })()
-                : "";
-              return (
-                <div key={m.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-sans text-[12px] font-medium text-black">
-                      {m.categoryName ?? m.classifiedStatus ?? "Movement"}
-                    </span>
-                    <span className="font-sans text-[12px] font-semibold tabular-nums text-black">{val}</span>
+      {/* Left: monthly revenue chart + movement ledger */}
+      <div className="space-y-6">
+        {/* Revenue chart */}
+        <div>
+          <p className="label-caps mb-3">Monthly Revenue</p>
+          {revChartData.length > 0 ? (
+            <div className="border border-[#E2DDD6] p-5 bg-[#FAF7F2]">
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={revChartData} barCategoryGap="30%">
+                  <CartesianGrid stroke={MUTED} strokeDasharray="2 4" vertical={false} />
+                  <XAxis
+                    dataKey="period"
+                    tickFormatter={d => { try { return format(parseISO(d + "-01"), "MMM yy"); } catch { return d; } }}
+                    tick={axisStyle} tickLine={false} axisLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis tickFormatter={v => fmtUsd(v)} tick={axisStyle} tickLine={false} axisLine={false} width={58} />
+                  <Tooltip
+                    contentStyle={ttStyle}
+                    formatter={(v) => [fmtUsd(Number(v)), "Revenue"]}
+                    labelFormatter={l => { try { return format(parseISO(String(l) + "-01"), "MMMM yyyy"); } catch { return String(l); } }}
+                  />
+                  <Bar dataKey="revenue" fill={BRONZE} opacity={0.85} radius={[1,1,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="border border-dashed border-[#E2DDD6] p-6 text-center">
+              <p className="font-sans text-[12px] text-[#999]">Revenue history not yet available</p>
+              <p className="font-sans text-[11px] text-[#BBB] mt-1">Protocol fee accrual has not started</p>
+            </div>
+          )}
+        </div>
+
+        {/* Movement ledger */}
+        <div>
+          <p className="label-caps mb-3">Recent Treasury Movements</p>
+          {movementList.length === 0 ? (
+            <div className="border border-dashed border-[#E2DDD6] p-6 text-center">
+              <p className="font-sans text-[12px] text-[#999]">No movement data available</p>
+            </div>
+          ) : (
+            <div className="border border-[#E2DDD6] divide-y divide-[#E2DDD6]">
+              {movementList.slice(0, 8).map((m, idx) => {
+                const val = typeof m.totalValue === "number" ? fmtUsd(m.totalValue) : "—";
+                const ts  = m.timestamp
+                  ? (() => { try { return format(parseISO(m.timestamp), "MMM d, yyyy"); } catch { return ""; } })()
+                  : "";
+                const label = m.categoryName ?? m.classifiedStatus ?? "Movement";
+                // fromName/toName may be null — fall back to truncated address
+                const from = m.fromName || (m.from ? m.from.slice(0, 6) + "…" : "—");
+                const to   = m.toName   || (m.to   ? m.to.slice(0, 6)   + "…" : "—");
+                return (
+                  <div key={m.id ?? idx} className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-2 mb-0.5">
+                      <span className="font-sans text-[12px] font-medium text-black leading-snug">{label}</span>
+                      <span className="font-sans text-[12px] font-semibold tabular-nums text-black shrink-0">{val}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="label-caps truncate">{from} → {to}</span>
+                      <span className="label-caps shrink-0">{ts}</span>
+                    </div>
+                    {m.description && (
+                      <p className="font-sans text-[11px] text-[#999] mt-0.5 leading-snug">{m.description}</p>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="label-caps">{m.fromName || "—"} → {m.toName || "—"}</span>
-                    <span className="label-caps">{ts}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Right: revenue summary */}
       <div>
         <p className="label-caps mb-3">Revenue Summary</p>
-        <div className="border border-[#E2DDD6] p-5">
-          <p className="label-caps mb-1">All-Time DAO Revenue</p>
-          <p className="font-serif text-black leading-none mb-4" style={{ fontSize: "clamp(1.8rem, 3vw, 2.4rem)" }}>
-            {fmtUsd(totalRevenue)}
-          </p>
-          <div className="border-t border-[#E2DDD6] pt-4 space-y-2">
+        <div className="border border-[#E2DDD6] p-5 space-y-5">
+          <div>
+            <p className="label-caps mb-1">All-Time DAO Revenue</p>
+            <p className="font-serif text-black leading-none" style={{ fontSize: "clamp(1.8rem, 3vw, 2.4rem)" }}>
+              {totalRevenue != null ? fmtUsd(totalRevenue) : "—"}
+            </p>
+            <p className="font-sans text-[11px] text-[#999] mt-1">Cumulative protocol fees collected</p>
+          </div>
+
+          <div className="border-t border-[#E2DDD6] pt-4 space-y-2.5">
+            <div className="flex justify-between">
+              <span className="label-caps">Fee Status</span>
+              <span className="font-sans text-[12px] font-semibold text-[#FF6477]">Not activated</span>
+            </div>
             <div className="flex justify-between">
               <span className="label-caps">Monthly Fees (est.)</span>
-              <span className="font-sans text-[13px] font-semibold text-black">~$200</span>
+              <span className="font-sans text-[12px] font-semibold text-black">~$200</span>
             </div>
             <div className="flex justify-between">
               <span className="label-caps">Monthly Burn</span>
-              <span className="font-sans text-[13px] font-semibold text-black">$50,000</span>
+              <span className="font-sans text-[12px] font-semibold text-black">$50,000</span>
             </div>
-            <div className="flex justify-between pt-2 border-t border-[#E2DDD6]">
+            <div className="flex justify-between pt-2.5 border-t border-[#E2DDD6]">
               <span className="label-caps text-[#FF6477]">Net Monthly</span>
-              <span className="font-sans text-[13px] font-semibold text-[#FF6477]">−$49,800</span>
+              <span className="font-sans text-[12px] font-semibold text-[#FF6477]">−$49,800</span>
             </div>
+          </div>
+
+          <div className="border border-dashed border-[#E2DDD6] p-3 bg-[#FAF7F2]">
+            <p className="label-caps mb-1 text-[#D4B596]">Next Catalyst</p>
+            <p className="font-sans text-[11px] text-[#6B6660] leading-relaxed">
+              OMFG-005 proposes activating protocol fees via strategic OTC raise. Fee switch would begin revenue accrual into the DAO treasury.
+            </p>
           </div>
         </div>
       </div>
@@ -285,15 +376,16 @@ const TABS = ["Protocol Traction", "Treasury & NAV", "Revenue & Economics"] as c
 type Tab = typeof TABS[number];
 
 interface Props {
-  tvlRows:      TvlRow[]         | null;
-  volumeRows:   VolRow[]         | null;
-  feesRows:     FeesRow[]        | null;
-  poolRows:     PoolRow[]        | null;
-  liqRows:      LiqRow[]         | null;
-  overview:     TreasuryOverview | null;
-  assets:       AssetBreakdown   | null;
-  movements:    Movement[]       | null;
-  totalRevenue: string           | null;
+  tvlRows:        TvlRow[]         | null;
+  volumeRows:     VolRow[]         | null;
+  feesRows:       FeesRow[]        | null;
+  poolRows:       PoolRow[]        | null;
+  liqRows:        LiqRow[]         | null;
+  overview:       TreasuryOverview | null;
+  assets:         AssetBreakdown   | null;
+  movements:      Movement[]       | null;
+  totalRevenue:   string           | null;
+  revenueHistory: RevenuePoint[]   | null;
 }
 
 export default function FinancialCore(props: Props) {
@@ -337,7 +429,11 @@ export default function FinancialCore(props: Props) {
         <TreasuryTab overview={props.overview} assets={props.assets} />
       )}
       {tab === "Revenue & Economics" && (
-        <RevenueTab movements={props.movements} totalRevenue={props.totalRevenue} />
+        <RevenueTab
+          movements={props.movements}
+          totalRevenue={props.totalRevenue}
+          revenueHistory={props.revenueHistory}
+        />
       )}
     </section>
   );

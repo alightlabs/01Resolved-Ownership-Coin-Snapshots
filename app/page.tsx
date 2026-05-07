@@ -8,6 +8,7 @@ import {
   getTotalRevenue,
   getMovements,
   getProposalAnalytics,
+  getRevenues,
 } from "@/lib/resolved";
 import type { PoolRow } from "@/lib/types";
 
@@ -52,6 +53,7 @@ export default async function Home() {
     totalRevenueData,
     movements,
     proposalAnalytics,
+    revenueHistory,
   ] = await Promise.all([
     dune     ? getDuneResults<TvlRow>(dune.queries.tvl!)          : null,
     dune     ? getDuneResults<VolRow>(dune.queries.volume!)        : null,
@@ -65,6 +67,7 @@ export default async function Home() {
     resolved ? getTotalRevenue(resolved.slug)                      : null,
     resolved ? getMovements(resolved.slug, 8)                      : null,
     resolved ? getProposalAnalytics(resolved.slug)                 : null,
+    resolved ? getRevenues(resolved.slug, "month")                 : null,
   ]);
 
   const tvlRows    = tvlResult?.result?.rows    ?? null;
@@ -115,6 +118,7 @@ export default async function Home() {
               assets={assetBreakdown}
               movements={movements}
               totalRevenue={totalRevenue}
+              revenueHistory={revenueHistory}
             />
 
             {resolved && (
