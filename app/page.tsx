@@ -1,23 +1,34 @@
 import omnipair from "@/projects/omnipair";
-import { getDuneResults, fmtUsd } from "@/lib/dune";
+import { getDuneResults } from "@/lib/dune";
 import {
   getTreasuryOverview,
   getAssetBreakdown,
   getProposals,
   getProjectOverview,
   getTotalRevenue,
+  getMovements,
 } from "@/lib/resolved";
-import type { TvlRow, VolumeRow, FeesRow, PoolRow } from "@/lib/types";
+import type { PoolRow } from "@/lib/types";
 
-import Header from "@/components/Header";
-import HeroSection from "@/components/HeroSection";
-import ProtocolSummary from "@/components/ProtocolSummary";
-import TractionTable from "@/components/TractionTable";
-import TreasurySection from "@/components/TreasurySection";
+import Header          from "@/components/Header";
+import TableOfContents from "@/components/TableOfContents";
+import LiveStateCard   from "@/components/LiveStateCard";
+import HeroSection     from "@/components/HeroSection";
+import TokenSnapshot   from "@/components/TokenSnapshot";
+import ExecutiveSummary from "@/components/ExecutiveSummary";
+import ProductSection  from "@/components/ProductSection";
+import TractionSection from "@/components/TractionSection";
+import FinancialCore   from "@/components/FinancialCore";
 import GovernanceSection from "@/components/GovernanceSection";
-import Footer from "@/components/Footer";
+import Footer          from "@/components/Footer";
 
 export const revalidate = 7200;
+
+// Dune row types (inline to avoid import issues with renamed types)
+interface TvlRow  { day?: string; total_usd?: number; total_deposits_usd?: number; token_symbol?: string; }
+interface VolRow  { day?: string; daily_volume?: number; total_volume?: number; twenty_four_volume?: number; cum_trades?: number; num_traders?: number; num_trades?: number; }
+interface FeesRow { day?: string; cum_dex_fees?: number; cum_borrows_fees?: number; dex_fees?: number; }
+interface LiqRow  { block_time?: string; tx_id?: string; pair?: string; collateral?: string; }
 
 export default async function Home() {
   const project = omnipair;
@@ -28,79 +39,91 @@ export default async function Home() {
     volumeResult,
     feesResult,
     poolsResult,
+    liqResult,
     treasuryOverview,
     assetBreakdown,
     proposals,
     projectOverview,
     totalRevenueData,
+    movements,
   ] = await Promise.all([
-    dune ? getDuneResults<TvlRow>(dune.queries.tvl!) : null,
-    dune ? getDuneResults<VolumeRow>(dune.queries.volume!) : null,
-    dune ? getDuneResults<FeesRow>(dune.queries.fees!) : null,
-    dune ? getDuneResults<PoolRow>(dune.queries.topPools!) : null,
-    resolved ? getTreasuryOverview(resolved.slug) : null,
-    resolved ? getAssetBreakdown(resolved.slug) : null,
-    resolved ? getProposals(resolved.slug, 5) : null,
-    resolved ? getProjectOverview(resolved.slug) : null,
-    resolved ? getTotalRevenue(resolved.slug) : null,
+    dune ? getDuneResults<TvlRow>(dune.queries.tvl!)         : null,
+    dune ? getDuneResults<VolRow>(dune.queries.volume!)       : null,
+    dune ? getDuneResults<FeesRow>(dune.queries.fees!)        : null,
+    dune ? getDuneResults<PoolRow>(dune.queries.topPools!)    : null,
+    dune ? getDuneResults<LiqRow>(dune.queries.liquidations!) : null,
+    resolved ? getTreasuryOverview(resolved.slug)   : null,
+    resolved ? getAssetBreakdown(resolved.slug)     : null,
+    resolved ? getProposals(resolved.slug, 5)       : null,
+    resolved ? getProjectOverview(resolved.slug)    : null,
+    resolved ? getTotalRevenue(resolved.slug)       : null,
+    resolved ? getMovements(resolved.slug, 6)       : null,
   ]);
 
   const tvlRows    = tvlResult?.result?.rows    ?? null;
   const volumeRows = volumeResult?.result?.rows  ?? null;
   const feesRows   = feesResult?.result?.rows    ?? null;
   const poolRows   = poolsResult?.result?.rows   ?? null;
+  const liqRows    = liqResult?.result?.rows     ?? null;
   const totalRevenue = totalRevenueData?.totalRevenue ?? null;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F0E8]">
       <Header project={project} />
 
-      <main className="flex-1 max-w-5xl mx-auto w-full px-6">
+      <div className="max-w-7xl mx-auto w-full px-6">
+        {/* Three-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_300px] gap-8 lg:gap-10 items-start">
 
-        {/* ── Hero: logo, name, token bar, tagline, tags, 4-KPI boxes ── */}
-        <HeroSection
-          project={project}
-          treasury={treasuryOverview}
-          projectOverview={projectOverview}
-        />
-
-        {/* ── Protocol Summary ── */}
-        <ProtocolSummary project={project} />
-
-        {/* ── Traction + Treasury: two-column ── */}
-        <section className="py-14 border-t border-[#E2DDD6]">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
-
-            <div className="space-y-10">
-              {dune && (
-                <TractionTable
-                  tvlRows={tvlRows as TvlRow[] | null}
-                  volumeRows={volumeRows as VolumeRow[] | null}
-                  feesRows={feesRows as FeesRow[] | null}
-                  poolRows={poolRows as PoolRow[] | null}
-                />
-              )}
-            </div>
-
-            <div>
-              {resolved && (
-                <TreasurySection
-                  overview={treasuryOverview}
-                  assets={assetBreakdown}
-                  totalRevenue={totalRevenue}
-                />
-              )}
-            </div>
-
+          {/* ── Left: TOC ── */}
+          <div className="hidden lg:block">
+            <TableOfContents />
           </div>
-        </section>
 
-        {/* ── Governance / Decision Markets ── */}
-        {resolved && (
-          <GovernanceSection proposals={proposals} />
-        )}
+          {/* ── Center: content ── */}
+          <main className="min-w-0">
+            <HeroSection project={project} overview={projectOverview} />
+            <TokenSnapshot project={project} overview={projectOverview} />
+            <ExecutiveSummary />
+            <ProductSection />
 
-      </main>
+            {dune && (
+              <TractionSection
+                tvlRows={tvlRows as TvlRow[] | null}
+                volumeRows={volumeRows as VolRow[] | null}
+                feesRows={feesRows as FeesRow[] | null}
+                poolRows={poolRows as PoolRow[] | null}
+                liqRows={liqRows as LiqRow[] | null}
+              />
+            )}
+
+            {resolved && (
+              <FinancialCore
+                overview={treasuryOverview}
+                assets={assetBreakdown}
+                movements={movements}
+                totalRevenue={totalRevenue}
+              />
+            )}
+
+            {resolved && (
+              <GovernanceSection proposals={proposals} />
+            )}
+          </main>
+
+          {/* ── Right: Live State card ── */}
+          <div className="hidden lg:block">
+            <div className="sticky top-20 pt-14">
+              <LiveStateCard
+                treasury={treasuryOverview}
+                project={projectOverview}
+                proposals={proposals}
+              />
+            </div>
+          </div>
+
+        </div>
+      </div>
 
       <Footer project={project} />
     </div>

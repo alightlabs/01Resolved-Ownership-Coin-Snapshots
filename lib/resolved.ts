@@ -112,3 +112,44 @@ export async function getTotalRevenue(slug: string) {
 export async function getTotalExpense(slug: string) {
   return get<{ totalExpense: string }>(`/dao/total-expense?slug=${slug}`);
 }
+
+export interface Movement {
+  id: number;
+  signature: string;
+  timestamp: string;
+  from: string;
+  to: string;
+  fromName: string;
+  toName: string;
+  totalValue: number;
+  tokenSymbol: string;
+  classifiedStatus: string;
+  categoryName: string | null;
+  description: string | null;
+}
+
+export async function getMovements(slug: string, limit = 5) {
+  return get<Movement[]>(`/dao/movements?slug=${slug}&limit=${limit}`);
+}
+
+export interface RevenuePoint {
+  month?: string;
+  period?: string;
+  revenue: string;
+}
+
+export async function getRevenues(slug: string, interval: "month" | "quarter" = "month") {
+  return get<RevenuePoint[]>(`/dao/revenues?slug=${slug}&interval=${interval}`);
+}
+
+export interface ProposalAnalytics {
+  totalProposals: number;
+  passedProposals: number;
+  failedProposals: number;
+  totalTradeVolume: number;
+  totalUniqueTraders: number;
+}
+
+export async function getProposalAnalytics(slug: string) {
+  return get<ProposalAnalytics>(`/proposal/analytics?slug=${slug}`);
+}
