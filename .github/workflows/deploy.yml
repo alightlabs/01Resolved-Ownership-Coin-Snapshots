@@ -18,9 +18,6 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
@@ -30,27 +27,29 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # vercel build outputs to .vercel/output (required for --prebuilt deploy)
-      # API keys injected here are used during static generation at build time
-      - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      # Push API keys from GitHub Secrets into the Vercel project's encrypted env store.
+      # Keys are never typed into any dashboard — they flow GitHub Secrets → Vercel CLI → Vercel.
+      - name: Sync API keys to Vercel project
+        run: |
+          printf '%s' "$DUNE_API_KEY"     | vercel env add DUNE_API_KEY     production --token=${{ secrets.VERCEL_TOKEN }} --force
+          printf '%s' "$RESOLVED_API_KEY" | vercel env add RESOLVED_API_KEY production --token=${{ secrets.VERCEL_TOKEN }} --force
+          printf '%s' "omnipair"          | vercel env add NEXT_PUBLIC_PROJECT_SLUG production --token=${{ secrets.VERCEL_TOKEN }} --force
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
           RESOLVED_API_KEY: ${{ secrets.RESOLVED_API_KEY }}
-          NEXT_PUBLIC_PROJECT_SLUG: omnipair
 
       - name: Deploy to Vercel (production)
         if: github.ref == 'refs/heads/main'
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy preview (PRs)
         if: github.event_name == 'pull_request'
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
