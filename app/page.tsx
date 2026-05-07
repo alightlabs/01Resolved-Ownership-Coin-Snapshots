@@ -11,11 +11,9 @@ import type { TvlRow, VolumeRow, FeesRow, PoolRow } from "@/lib/types";
 
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
-import LiveStateCard from "@/components/LiveStateCard";
 import ProtocolSummary from "@/components/ProtocolSummary";
 import TractionTable from "@/components/TractionTable";
 import TreasurySection from "@/components/TreasurySection";
-import TopPoolsTable from "@/components/TopPoolsTable";
 import GovernanceSection from "@/components/GovernanceSection";
 import Footer from "@/components/Footer";
 
@@ -47,58 +45,33 @@ export default async function Home() {
     resolved ? getTotalRevenue(resolved.slug) : null,
   ]);
 
-  const tvlRows    = tvlResult?.result?.rows ?? null;
-  const volumeRows = volumeResult?.result?.rows ?? null;
-  const feesRows   = feesResult?.result?.rows ?? null;
-  const poolRows   = poolsResult?.result?.rows ?? null;
-
-  // Derive Dune KPIs for Live State card
-  const lastTvlRow = tvlRows?.find(r => r.token === "All" || !r.token) ?? tvlRows?.at(-1);
-  const allVolRow  = volumeRows?.find(r => r.token === "All" || !r.token);
-  const lastVolRow = volumeRows?.at(-1);
-
-  const tvlKpi          = fmtUsd(lastTvlRow?.tvl ?? lastTvlRow?.total_tvl ?? null);
-  const alltimeVolKpi   = fmtUsd(allVolRow?.cum_volume ?? lastVolRow?.cum_volume ?? null);
-
+  const tvlRows    = tvlResult?.result?.rows    ?? null;
+  const volumeRows = volumeResult?.result?.rows  ?? null;
+  const feesRows   = feesResult?.result?.rows    ?? null;
+  const poolRows   = poolsResult?.result?.rows   ?? null;
   const totalRevenue = totalRevenueData?.totalRevenue ?? null;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F5F0E8]">
       <Header project={project} />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6">
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6">
 
-        {/* ── Hero: two-column ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-10 lg:gap-16">
-          <HeroSection project={project} />
-          <aside className="hidden lg:block pt-16">
-            <div className="sticky top-20">
-              <LiveStateCard
-                treasury={treasuryOverview}
-                project={projectOverview}
-                duneKpis={{ tvl: tvlKpi, alltimeVolume: alltimeVolKpi }}
-              />
-            </div>
-          </aside>
-        </div>
-
-        {/* Live State — mobile */}
-        <div className="lg:hidden mb-10">
-          <LiveStateCard
-            treasury={treasuryOverview}
-            project={projectOverview}
-            duneKpis={{ tvl: tvlKpi, alltimeVolume: alltimeVolKpi }}
-          />
-        </div>
+        {/* ── Hero: logo, name, token bar, tagline, tags, 4-KPI boxes ── */}
+        <HeroSection
+          project={project}
+          treasury={treasuryOverview}
+          projectOverview={projectOverview}
+        />
 
         {/* ── Protocol Summary ── */}
         <ProtocolSummary project={project} />
 
         {/* ── Traction + Treasury: two-column ── */}
         <section className="py-14 border-t border-[#E2DDD6]">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-10">
-            {/* Left: traction stats */}
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
+
+            <div className="space-y-10">
               {dune && (
                 <TractionTable
                   tvlRows={tvlRows as TvlRow[] | null}
@@ -109,7 +82,6 @@ export default async function Home() {
               )}
             </div>
 
-            {/* Right: treasury intelligence */}
             <div>
               {resolved && (
                 <TreasurySection
@@ -119,24 +91,11 @@ export default async function Home() {
                 />
               )}
             </div>
+
           </div>
         </section>
 
-        {/* ── Top Pools ── */}
-        {dune && poolRows && poolRows.length > 0 && (
-          <section className="py-14 border-t border-[#E2DDD6]">
-            <p className="label-caps mb-2">Protocol Aggregation</p>
-            <h2
-              className="font-serif text-black mb-6"
-              style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-            >
-              Top Pools
-            </h2>
-            <TopPoolsTable rows={poolRows as PoolRow[] | null} />
-          </section>
-        )}
-
-        {/* ── Governance ── */}
+        {/* ── Governance / Decision Markets ── */}
         {resolved && (
           <GovernanceSection proposals={proposals} />
         )}

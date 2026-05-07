@@ -26,6 +26,9 @@ export interface ProjectConfig {
   // Identity
   name: string;
   slug: string;          // matches 01Resolved slug
+  logoUrl?: string;      // project logo image URL
+  tokenSymbol?: string;  // e.g. "OMFG"
+  icoDate?: string;      // e.g. "July 2024"
   tagline: string;
   description: string;
   tags: string[];

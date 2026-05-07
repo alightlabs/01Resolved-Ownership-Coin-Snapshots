@@ -3,7 +3,10 @@ import type { ProjectConfig } from "@/lib/types";
 const omnipair: ProjectConfig = {
   name: "Omnipair",
   slug: "omnipair",
-  tagline: "The unified liquidity layer for Solana.",
+  logoUrl: "https://imagedelivery.net/HYEnlujCFMCgj6yA728xIw/e6195b65-06cb-46c9-1ad6-932a77a2a800/public",
+  tokenSymbol: "OMFG",
+  icoDate: "July 2024",
+  tagline: "Permissionless spot trading and margin lending for any Solana token pair.",
   description:
     "Omnipair combines an AMM-based DEX with integrated collateral lending into a single protocol. Liquidity providers earn trading fees while token holders can deposit collateral to borrow USDC — all within the same pool.",
   tags: ["Solana", "DEX", "Lending", "AMM", "Collateral"],
