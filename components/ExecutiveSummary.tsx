@@ -5,7 +5,7 @@ export default function ExecutiveSummary() {
         <h2 className="font-serif text-black" style={{ fontSize: "clamp(1.8rem, 3vw, 2.5rem)" }}>
           Executive Summary
         </h2>
-        <span className="label-caps">Section 03 / Analyst Memo</span>
+        <span className="label-caps">Section 04 / Analyst Memo</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-8">

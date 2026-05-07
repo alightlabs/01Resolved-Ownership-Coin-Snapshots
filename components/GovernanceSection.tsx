@@ -82,9 +82,9 @@ export default function GovernanceSection({ proposals, analytics }: Props) {
       </div>
 
       {/* Proposal ledger */}
-      <div className="border border-[#E2DDD6] divide-y divide-[#E2DDD6]">
+      <div className="border border-[#E2DDD6] divide-y divide-[#E2DDD6] overflow-x-auto">
         {/* Header */}
-        <div className="grid px-5 py-2.5 bg-[#FAF7F2]"
+        <div className="grid px-5 py-2.5 bg-[#FAF7F2] min-w-[560px]"
           style={{ gridTemplateColumns: "60px 1fr 120px 100px 140px" }}>
           {["ID", "Title", "Date", "Result", "TWAP Spread"].map(h => (
             <span key={h} className="label-caps">{h}</span>
@@ -96,7 +96,7 @@ export default function GovernanceSection({ proposals, analytics }: Props) {
           return (
             <div
               key={p.id}
-              className="grid items-center px-5 py-4 hover:bg-[#FDFCFA] transition-colors"
+              className="grid items-center px-5 py-4 hover:bg-[#FDFCFA] transition-colors min-w-[560px]"
               style={{ gridTemplateColumns: "60px 1fr 120px 100px 140px" }}
             >
               <span className="font-mono text-[11px] text-[#999]">#{p.id}</span>

@@ -79,10 +79,10 @@ export default async function Home() {
       <Header project={project} />
 
       <div className="max-w-7xl mx-auto w-full px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_300px] gap-8 lg:gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr_300px] gap-8 lg:gap-10">
 
-          {/* Left: TOC */}
-          <div className="hidden lg:block">
+          {/* Left: TOC — sticky at grid-item level, top-16 clears the 48px header */}
+          <div className="hidden lg:block sticky top-16 self-start pt-14">
             <TableOfContents />
           </div>
 
@@ -128,9 +128,9 @@ export default async function Home() {
             <RiskFactors />
           </main>
 
-          {/* Right: Live State */}
-          <div className="hidden lg:block">
-            <div className="sticky top-20 pt-14">
+          {/* Right: Live State — sticky at grid-item level, top-16 clears the 48px header */}
+          <div className="hidden lg:block sticky top-16 self-start pt-14">
+            <div>
               <LiveStateCard
                 treasury={treasuryOverview}
                 project={projectOverview}

@@ -309,7 +309,7 @@ export default function FinancialCore(props: Props) {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#E2DDD6] mb-6">
+      <div className="flex border-b border-[#E2DDD6] mb-6 overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t}

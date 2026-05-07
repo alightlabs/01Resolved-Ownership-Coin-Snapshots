@@ -39,7 +39,7 @@ export default function ProductSection() {
         <h2 className="font-serif text-black" style={{ fontSize: "clamp(1.8rem, 3vw, 2.5rem)" }}>
           Product
         </h2>
-        <span className="label-caps">Section 04 / Architecture</span>
+        <span className="label-caps">Section 05 / Architecture</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

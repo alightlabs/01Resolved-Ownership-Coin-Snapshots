@@ -40,7 +40,7 @@ export default function TableOfContents() {
   }, []);
 
   return (
-    <nav className="sticky top-20 pt-14">
+    <nav>
       <p className="label-caps mb-4">Contents</p>
       <ul className="space-y-0.5">
         {sections.map(s => (

@@ -78,7 +78,7 @@ export default function CompetitiveSection() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-[#E2DDD6] mb-6">
+      <div className="flex border-b border-[#E2DDD6] mb-6 overflow-x-auto">
         {TABS.map(t => (
           <button
             key={t}
