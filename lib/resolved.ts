@@ -1,17 +1,7 @@
-import type {
-  TreasuryOverview,
-  TreasuryChartPoint,
-  AssetCategory,
-  ProposalSummary,
-} from "./types";
-
-const BASE = "https://api.01resolved.com/v1";
+const BASE = "https://01resolved.var-meta.com/api/v1";
 
 function headers() {
-  return {
-    "x-api-key": process.env.RESOLVED_API_KEY ?? "",
-    "Content-Type": "application/json",
-  };
+  return { "x-api-key": process.env.RESOLVED_API_KEY ?? "" };
 }
 
 async function get<T>(path: string): Promise<T | null> {
@@ -21,54 +11,98 @@ async function get<T>(path: string): Promise<T | null> {
       next: { revalidate: 3600 },
     });
     if (!res.ok) {
-      console.error(`01Resolved ${path}: ${res.status} ${res.statusText}`);
+      console.error(`01R ${path}: ${res.status}`);
       return null;
     }
     const json = await res.json();
     return json.data as T;
   } catch (err) {
-    console.error(`01Resolved ${path} error:`, err);
+    console.error(`01R ${path} error:`, err);
     return null;
   }
 }
 
-export async function getTreasuryOverview(
-  slug: string
-): Promise<TreasuryOverview | null> {
+// ─── Types ────────────────────────────────────────────────────────────────
+
+export interface TreasuryOverview {
+  baseMintCurrentPrice: string;
+  totalBalance: string;
+  netAssetValue: string | null;
+  spendingLimit: string;
+  monthOfRunway: string | null;
+}
+
+export interface AssetAccount {
+  name: string;
+  address: string;
+  value: string;
+}
+
+export interface AssetToken {
+  symbol: string;
+  amount: string;
+  value: string;
+  url: string;
+}
+
+export interface AssetCategory {
+  name: string;
+  value: string;
+  accountCount: number;
+  accounts: AssetAccount[];
+  tokens: AssetToken[];
+}
+
+export interface AssetBreakdown {
+  totalValue: string;
+  categories: AssetCategory[];
+}
+
+export interface Proposal {
+  id: number;
+  title: string;
+  publicKey: string;
+  creationDate: string;
+  endDate: string;
+  totalTrade: number;
+  totalTradeVolume: string;
+  totalUniqueTraders: number;
+  result: string;
+  status: string;
+  netPassVolumeTilt: string;
+  twapThresholdMargin: string;
+  organizationSlug: string;
+}
+
+export interface ProjectOverview {
+  tokenSymbol: string;
+  tokenPrice: string;
+  tokenPriceUSDChange24h: string;
+  circulatingSupply: string;
+  totalSupply: string;
+  icoPrice: number;
+  projectDescription: string;
+  projectSubDescription: string;
+}
+
+// ─── Fetchers ─────────────────────────────────────────────────────────────
+
+export async function getTreasuryOverview(slug: string) {
   return get<TreasuryOverview>(`/dao/treasury/overview?slug=${slug}`);
 }
 
-export async function getTreasuryChart(
-  slug: string,
-  interval: "day" | "week" | "month" = "day"
-): Promise<TreasuryChartPoint[] | null> {
-  return get<TreasuryChartPoint[]>(
-    `/dao/treasury/chart?slug=${slug}&interval=${interval}`
-  );
+export async function getAssetBreakdown(slug: string) {
+  return get<AssetBreakdown>(`/dao/list-asset-allocation-breakdown?slug=${slug}`);
 }
 
-export async function getAssetBreakdown(
-  slug: string
-): Promise<{ totalValue: string; categories: AssetCategory[] } | null> {
-  return get(`/dao/asset-allocation-breakdown?slug=${slug}`);
+export async function getProposals(slug: string, limit = 5) {
+  // API returns array directly in data
+  const raw = await get<Proposal[]>(`/proposal?slug=${slug}&limit=${limit}&sortBy=startDate&sortOrder=desc`);
+  return raw;
 }
 
-export async function getProposals(
-  slug: string,
-  limit = 5
-): Promise<{ items: ProposalSummary[] } | null> {
-  return get(`/proposal?slug=${slug}&limit=${limit}&sortBy=startDate&sortOrder=desc`);
-}
-
-export async function getDaoOverview(slug: string) {
-  return get(`/dao/overview?slug=${slug}`);
-}
-
-export async function getRevenues(
-  slug: string,
-  interval: "month" | "quarter" = "month"
-) {
-  return get(`/dao/revenues?slug=${slug}&interval=${interval}`);
+export async function getProjectOverview(slug: string) {
+  return get<ProjectOverview>(`/project-overview?slug=${slug}`);
 }
 
 export async function getTotalRevenue(slug: string) {

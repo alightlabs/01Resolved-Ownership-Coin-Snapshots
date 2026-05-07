@@ -1,148 +1,158 @@
-"use client";
-
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { format } from "date-fns";
-import type { TreasuryOverview, TreasuryChartPoint, AssetCategory } from "@/lib/types";
 import { fmtUsd } from "@/lib/dune";
+import type {
+  TreasuryOverview,
+  AssetBreakdown,
+} from "@/lib/resolved";
 
-const ttStyle = {
-  backgroundColor: "#000",
-  border: "1px solid #222",
-  borderRadius: 0,
-  fontSize: 11,
-  fontFamily: "'Open Sauce One', sans-serif",
-  color: "#fff",
-  padding: "6px 10px",
-};
+interface Row {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  badge?: string;
+}
 
-const axisStyle = {
-  fontSize: 10,
-  fontFamily: "'Open Sauce One', sans-serif",
-  fill: "#999",
-};
+function StatRow({ label, value, highlight, badge }: Row) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-[#1e1e1e] last:border-0">
+      <span className="text-[10px] font-sans font-medium tracking-[0.12em] uppercase text-[#555]">
+        {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <span
+          className={`font-sans text-[13px] font-semibold tabular-nums ${
+            highlight ? "text-[#D4B596]" : "text-white"
+          }`}
+        >
+          {value}
+        </span>
+        {badge && (
+          <span className="text-[9px] font-sans font-semibold tracking-widest uppercase bg-[#1a3a2a] text-[#31BA7C] px-1.5 py-0.5">
+            {badge}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   overview: TreasuryOverview | null;
-  chart: TreasuryChartPoint[] | null;
-  assets: { totalValue: string; categories: AssetCategory[] } | null;
+  assets: AssetBreakdown | null;
+  totalRevenue: string | null;
 }
 
-export default function TreasurySection({ overview, chart, assets }: Props) {
-  const hasData = overview || chart || assets;
+export default function TreasurySection({ overview, assets, totalRevenue }: Props) {
+  if (!overview && !assets) {
+    return (
+      <div className="border border-dashed border-[#E2DDD6] p-8 text-center text-[13px] text-[#999] font-sans">
+        Treasury data loading — check API key
+      </div>
+    );
+  }
 
-  const chartData = (chart ?? []).map((p) => ({
-    date: format(new Date(p.timestamp * 1000), "MMM d"),
-    value: parseFloat(p.totalValue),
-  }));
+  // Spot price + NAV calculations
+  const spotPrice = overview?.baseMintCurrentPrice
+    ? parseFloat(overview.baseMintCurrentPrice)
+    : null;
+  const navPerToken = overview?.netAssetValue
+    ? parseFloat(overview.netAssetValue)
+    : null;
+  const spotNavMultiple =
+    spotPrice && navPerToken && navPerToken > 0
+      ? (spotPrice / navPerToken).toFixed(2) + "x"
+      : "—";
+  const spotPremium =
+    spotPrice && navPerToken && navPerToken > 0
+      ? ((spotPrice / navPerToken - 1) * 100).toFixed(1) + "%"
+      : "—";
 
-  const statCells = [
-    { label: "Treasury Balance", value: fmtUsd(overview?.totalBalance) },
-    { label: "Net Asset Value", value: fmtUsd(overview?.netAssetValue) },
-    { label: "Monthly Spending Limit", value: fmtUsd(overview?.spendingLimit) },
+  // DAO Main wallet
+  const mainCategory = assets?.categories.find(c => c.name === "Main");
+  const mainWalletValue = mainCategory ? fmtUsd(mainCategory.value) : "—";
+
+  // LP positions
+  const lpCategory = assets?.categories.find(c => c.name === "LPPositions");
+  const lpValue = lpCategory ? fmtUsd(lpCategory.value) : "—";
+
+  const runway = overview?.monthOfRunway
+    ? `~${parseFloat(overview.monthOfRunway).toFixed(1)} months`
+    : "—";
+
+  const rows: Row[] = [
     {
-      label: "Runway",
-      value: overview?.monthOfRunway
-        ? `~${Math.round(parseFloat(overview.monthOfRunway))} months`
-        : "—",
+      label: "Total Treasury Value",
+      value: fmtUsd(overview?.totalBalance),
+      badge: "ONCHAIN",
     },
+    { label: "DAO Main Wallet", value: mainWalletValue, badge: "ONCHAIN" },
+    ...(lpCategory ? [{ label: "LP Positions", value: lpValue, badge: "ONCHAIN" as const }] : []),
+    {
+      label: "Monthly Spend Limit",
+      value: overview?.spendingLimit ? fmtUsd(overview.spendingLimit) : "—",
+      badge: "DISCLOSED",
+    },
+    { label: "Remaining Runway", value: runway, badge: "MODEL" },
+    {
+      label: "NAV per Token",
+      value: navPerToken ? `$${navPerToken.toFixed(4)}` : "—",
+      highlight: true,
+      badge: "MODEL",
+    },
+    {
+      label: "Spot Price",
+      value: spotPrice ? `$${spotPrice.toFixed(4)}` : "—",
+      badge: "ONCHAIN",
+    },
+    { label: "Spot / NAV Multiple", value: spotNavMultiple },
+    { label: "Spot Premium to NAV", value: spotPremium },
+    ...(totalRevenue
+      ? [{ label: "All-Time DAO Revenue", value: fmtUsd(totalRevenue) }]
+      : []),
   ];
 
+  function Badge({ type }: { type?: string }) {
+    if (!type) return null;
+    const styles: Record<string, string> = {
+      ONCHAIN:   "bg-[#1a3a2a] text-[#31BA7C]",
+      MODEL:     "bg-[#1a1a2e] text-[#7070cc]",
+      DISCLOSED: "bg-[#2a1a10] text-[#D4B596]",
+    };
+    return (
+      <span className={`text-[9px] font-sans font-semibold tracking-widest uppercase px-1.5 py-0.5 ${styles[type] ?? ""}`}>
+        {type}
+      </span>
+    );
+  }
+
   return (
-    <section className="py-14 border-t border-[#E2DDD6]">
-      <p className="label-caps mb-2">Treasury Intelligence</p>
-      <h2
-        className="font-serif text-black mb-8"
-        style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)" }}
-      >
-        Financial Core
-      </h2>
-
-      {!hasData ? (
-        <div className="border border-dashed border-[#E2DDD6] p-10 text-center text-[13px] text-[#999] font-sans">
-          Add your 01Resolved API key to load treasury intelligence
+    <div className="dark-panel">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-[#1e1e1e] flex items-center justify-between">
+        <span className="text-[9px] font-sans font-semibold tracking-[0.18em] uppercase text-[#555]">
+          Treasury Intelligence
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="live-dot" />
+          <span className="text-[9px] text-[#31BA7C] font-sans font-medium tracking-wide">LIVE</span>
         </div>
-      ) : (
-        <>
-          {/* KPI row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 border border-[#E2DDD6] mb-5">
-            {statCells.map((s, i) => (
-              <div
-                key={s.label}
-                className={`p-5 ${i < statCells.length - 1 ? "border-r border-[#E2DDD6]" : ""}`}
-              >
-                <p className="label-caps mb-2">{s.label}</p>
-                <p className="font-sans text-2xl font-semibold text-black tabular-nums">
-                  {s.value}
-                </p>
-              </div>
-            ))}
-          </div>
+      </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Treasury chart */}
-            {chartData.length > 0 && (
-              <div className="lg:col-span-2 border border-[#E2DDD6] p-5 bg-[#FAF7F2]">
-                <p className="font-sans text-[11px] font-semibold text-black uppercase tracking-wide mb-4">
-                  Treasury Value — 90 Day
-                </p>
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={chartData.slice(-90)}>
-                    <defs>
-                      <linearGradient id="treasGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#D4B596" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#D4B596" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="#E2DDD6" strokeDasharray="2 4" vertical={false} />
-                    <XAxis dataKey="date" tick={axisStyle} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-                    <YAxis tickFormatter={(v) => fmtUsd(v)} tick={axisStyle} tickLine={false} axisLine={false} width={60} />
-                    <Tooltip
-                      contentStyle={ttStyle}
-                      formatter={(v) => [fmtUsd(Number(v)), "Treasury"]}
-                    />
-                    <Area type="monotone" dataKey="value" stroke="#D4B596" strokeWidth={1.5} fill="url(#treasGrad)" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Asset allocation */}
-            {assets && (
-              <div className="border border-[#E2DDD6] p-5 bg-[#FAF7F2]">
-                <p className="font-sans text-[11px] font-semibold text-black uppercase tracking-wide mb-4">
-                  Asset Allocation
-                </p>
-                <p className="label-caps mb-4">
-                  Total: {fmtUsd(assets.totalValue)}
-                </p>
-                <div className="space-y-3">
-                  {assets.categories.map((cat) => {
-                    const catTotal = parseFloat(assets.totalValue) || 1;
-                    const catValue = parseFloat(cat.value) || 0;
-                    const pct = Math.min(100, (catValue / catTotal) * 100);
-                    return (
-                      <div key={cat.name}>
-                        <div className="flex justify-between mb-1">
-                          <span className="label-caps">{cat.name}</span>
-                          <span className="label-caps text-black">
-                            {fmtUsd(cat.value)}
-                          </span>
-                        </div>
-                        <div className="h-1 bg-[#E2DDD6] rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#D4B596] rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+      {/* Rows */}
+      <div className="px-4">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between py-3 border-b border-[#1e1e1e] last:border-0">
+            <span className="text-[10px] font-sans font-medium tracking-[0.12em] uppercase text-[#555]">
+              {row.label}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className={`font-sans text-[13px] font-semibold tabular-nums ${row.highlight ? "text-[#D4B596]" : "text-white"}`}>
+                {row.value}
+              </span>
+              <Badge type={row.badge} />
+            </div>
           </div>
-        </>
-      )}
-    </section>
+        ))}
+      </div>
+    </div>
   );
 }

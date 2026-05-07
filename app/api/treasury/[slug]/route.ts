@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   getTreasuryOverview,
-  getTreasuryChart,
   getAssetBreakdown,
   getProposals,
   getTotalRevenue,
   getTotalExpense,
+  getProjectOverview,
 } from "@/lib/resolved";
 
 export async function GET(
@@ -14,18 +14,18 @@ export async function GET(
 ) {
   const { slug } = await params;
 
-  const [overview, chart, assets, proposals, revenue, expense] =
+  const [overview, assets, proposals, revenue, expense, project] =
     await Promise.all([
       getTreasuryOverview(slug),
-      getTreasuryChart(slug, "day"),
       getAssetBreakdown(slug),
       getProposals(slug, 5),
       getTotalRevenue(slug),
       getTotalExpense(slug),
+      getProjectOverview(slug),
     ]);
 
   return NextResponse.json(
-    { overview, chart, assets, proposals, revenue, expense },
+    { overview, assets, proposals, revenue, expense, project },
     {
       headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=1800" },
     }
